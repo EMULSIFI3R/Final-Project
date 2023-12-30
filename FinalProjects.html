@@ -224,14 +224,65 @@
         flex: 0 0 calc(25% - 20px);
       }
     }
+    .discover-section {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 
 <body onload="initMovieExplorer()">
   <h1>Cinematic Quest</h1>
+  <div class="discover-section">
+    <!-- Add genre filter buttons -->
+    <button onclick="exploreMovies('', 'All')">All</button>
+    <button onclick="exploreMovies(28, 'Action')">Action</button>
+    <button onclick="exploreMovies(18, 'Drama')">Drama</button>
+    <button onclick="exploreMovies(35, 'Comedy')">Comedy</button>
+    <!-- Add more genre buttons as needed -->
+  </div>
+
+  <!-- Keep the search input and associated button -->
   <label for="search-input">Explore a Movie:</label>
   <input type="text" id="search-input" placeholder="Enter movie name">
   <button onclick="exploreMovies()">Explore</button>
+
+  <div id="movie-info"></div>
+  
+
+<!-- Modify the exploreMovies function to include the genre parameter -->
+<script>
+  function exploreMovies(genreId, genreName) {
+    const searchTerm = document.getElementById('search-input').value;
+    if (!searchTerm && !genreId) {
+      alert('Please enter a movie name or select a genre');
+      return;
+    }
+    document.getElementById('movie-info').innerHTML = '';
+
+    let apiUrl = `${filmApiUrl}/search/movie?api_key=${filmApiKey}&language=en-US&page=1&include_adult=false`;
+
+    if (genreId) {
+      apiUrl += `&with_genres=${genreId}`;
+    }
+
+    if (searchTerm) {
+      apiUrl += `&query=${searchTerm}`;
+    }
+
+    fetch(apiUrl)
+      .then(response => response.json())
+      .then(data => {
+        const searchResults = data.results;
+        displayMovies(searchResults, `Explore Results for "${searchTerm}"${genreName ? ' - ' + genreName : ''}`);
+      })
+      .catch(error => console.error('Error fetching search results:', error));
+  }
+</script>
+
 
   <div id="movie-info"></div>
 
@@ -264,18 +315,25 @@
       discoverTrending(); // Call discoverTrending automatically
     }
 
-    function exploreMovies() {
+    function exploreMovies(genreId, genreName) {
       const searchTerm = document.getElementById('search-input').value;
-      if (!searchTerm) {
-        alert('Please enter a movie name');
-        return;
-      }
       document.getElementById('movie-info').innerHTML = '';
-      fetch(`${filmApiUrl}/search/movie?api_key=${filmApiKey}&language=en-US&query=${searchTerm}&page=1&include_adult=false`)
+
+      let apiUrl = `${filmApiUrl}/discover/movie?api_key=${filmApiKey}&language=en-US&page=1&include_adult=false`;
+
+      if (genreId) {
+        apiUrl += `&with_genres=${genreId}`;
+      }
+
+      if (searchTerm) {
+        apiUrl += `&query=${searchTerm}`;
+      }
+
+      fetch(apiUrl)
         .then(response => response.json())
         .then(data => {
           const searchResults = data.results;
-          displayMovies(searchResults, `Explore Results for "${searchTerm}"`);
+          displayMovies(searchResults, `Explore Results${genreName ? ' - ' + genreName : ''}`);
         })
         .catch(error => console.error('Error fetching search results:', error));
     }
@@ -297,27 +355,53 @@
         .catch(error => console.error('Error fetching trending movies:', error));
     }
 
-    function displayMovies(movies, title) {
-      const movieInfoDiv = document.getElementById('movie-info');
-      // Display title only if it's provided
-      if (title) {
-        const titleElement = document.createElement('h2');
-        titleElement.textContent = title;
-        movieInfoDiv.appendChild(titleElement);
+    function showUpcomingMovies() {
+  document.getElementById('movie-info').innerHTML = '';
+  fetch(`${filmApiUrl}/movie/upcoming?api_key=${filmApiKey}&language=en-US&page=1`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
       }
+      return response.json();
+    })
+    .then(data => {
+      if (data.results && data.results.length > 0) {
+        const upcomingMovies = data.results.filter(movie => {
+          const releaseDate = new Date(movie.release_date);
+          const currentDate = new Date();
+          const twoYearsLater = new Date();
+          twoYearsLater.setFullYear(currentDate.getFullYear() + 2);
+          return releaseDate > currentDate && releaseDate <= twoYearsLater;
+        });
 
-      movies.forEach(movie => {
-        const movieCard = document.createElement('div');
-        movieCard.classList.add('movie-card');
-        movieCard.innerHTML = `
-          <h3>${movie.title}</h3>
-          <div class="movie-poster" onclick="openCinemaModal('${movie.id}')">
-            <img src="${filmImageBaseUrl}${movie.poster_path}" alt="${movie.title}" class="movie-poster">
-          </div>
-        `;
-        movieInfoDiv.appendChild(movieCard);
-      });
-    }
+        displayMovies(upcomingMovies, 'Upcoming Movies');
+      } else {
+        alert('No upcoming movies found.');
+      }
+    })
+    .catch(error => console.error('Error fetching upcoming movies:', error));
+}
+function displayMovies(movies, title) {
+  const movieInfoDiv = document.getElementById('movie-info');
+  // Display title and count if it's provided
+  if (title) {
+    const titleElement = document.createElement('h2');
+    titleElement.textContent = `${title} (${movies.length} results)`;
+    movieInfoDiv.appendChild(titleElement);
+  }
+
+  movies.forEach(movie => {
+    const movieCard = document.createElement('div');
+    movieCard.classList.add('movie-card');
+    movieCard.innerHTML = `
+      <h3>${movie.title}</h3>
+      <div class="movie-poster" onclick="openCinemaModal('${movie.id}')">
+        <img src="${filmImageBaseUrl}${movie.poster_path}" alt="${movie.title}" class="movie-poster">
+      </div>
+    `;
+    movieInfoDiv.appendChild(movieCard);
+  });
+}
 
     function openCinemaModal(movieId) {
       fetch(`${filmApiUrl}/movie/${movieId}?api_key=${filmApiKey}&language=en-US`)
@@ -363,7 +447,6 @@
         })
         .catch(error => console.error('Error fetching movie details:', error));
     }
-
     document.querySelector('h1').addEventListener('click', function() {
       showUpcomingMovies();
     });
