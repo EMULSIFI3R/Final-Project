@@ -249,40 +249,37 @@
 
   <!-- Keep the search input and associated button -->
   <label for="search-input">Explore a Movie:</label>
-  <input type="text" id="search-input" placeholder="Enter movie name">
-  <button onclick="exploreMovies()">Explore</button>
+<input type="text" id="search-input" placeholder="Enter movie name">
+<button onclick="exploreMovies()">Explore</button>
 
   <div id="movie-info"></div>
   
 
 <!-- Modify the exploreMovies function to include the genre parameter -->
 <script>
-  function exploreMovies(genreId, genreName) {
-    const searchTerm = document.getElementById('search-input').value;
-    if (!searchTerm && !genreId) {
-      alert('Please enter a movie name or select a genre');
-      return;
-    }
-    document.getElementById('movie-info').innerHTML = '';
-
-    let apiUrl = `${filmApiUrl}/search/movie?api_key=${filmApiKey}&language=en-US&page=1&include_adult=false`;
-
-    if (genreId) {
-      apiUrl += `&with_genres=${genreId}`;
-    }
-
-    if (searchTerm) {
-      apiUrl += `&query=${searchTerm}`;
-    }
-
-    fetch(apiUrl)
-      .then(response => response.json())
-      .then(data => {
-        const searchResults = data.results;
-        displayMovies(searchResults, `Explore Results for "${searchTerm}"${genreName ? ' - ' + genreName : ''}`);
-      })
-      .catch(error => console.error('Error fetching search results:', error));
+  function exploreMovies() {
+  const searchTerm = document.getElementById('search-input').value.trim();
+  if (!searchTerm) {
+    alert('Please enter a movie name');
+    return;
   }
+
+  document.getElementById('movie-info').innerHTML = ''; // Clear existing movie info
+
+  const apiUrl = `${filmApiUrl}/search/movie?api_key=${filmApiKey}&language=en-US&page=1&include_adult=false&query=${searchTerm}`;
+
+  fetch(apiUrl)
+    .then(response => response.json())
+    .then(data => {
+      const searchResults = data.results;
+      if (searchResults.length === 0) {
+        alert(`No results found for "${searchTerm}"`);
+      } else {
+        displayMovies(searchResults, `Explore Results for "${searchTerm}"`);
+      }
+    })
+    .catch(error => console.error('Error fetching search results:', error));
+}
 </script>
 
 
@@ -308,54 +305,48 @@
     const filmImageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
     function initMovieExplorer() {
-      document.getElementById('search-input').addEventListener('keydown', function(event) {
-        if (event.key === 'Enter') {
-          exploreMovies();
+    document.getElementById('search-input').addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        exploreMovies();
+      }
+    });
+
+    // Automatically explore all movies on page load
+    exploreMovies();
+  }
+  function exploreMovies() {
+  console.log('exploreMovies called');
+  const searchTerm = document.getElementById('search-input').value.trim();
+  document.getElementById('movie-info').innerHTML = ''; // Clear existing movie info
+
+  if (searchTerm) {
+    // If there's a search term, use the search endpoint
+    const apiUrl = `${filmApiUrl}/search/movie?api_key=${filmApiKey}&language=en-US&page=1&include_adult=false&query=${searchTerm}`;
+
+    fetch(apiUrl)
+      .then(response => response.json())
+      .then(data => {
+        const searchResults = data.results;
+        if (searchResults.length === 0) {
+          alert(`No results found for "${searchTerm}"`);
+        } else {
+          displayMovies(searchResults, `Explore Results for "${searchTerm}"`);
         }
-      });
-      // showUpcomingMovies();
-      discoverTrending(); // Call discoverTrending automatically
-    }
+      })
+      .catch(error => console.error('Error fetching search results:', error));
+  } else {
+    // If no search term, use the discover endpoint (current behavior)
+    const apiUrl = `${filmApiUrl}/discover/movie?api_key=${filmApiKey}&language=en-US&page=1&include_adult=false`;
 
-    function exploreMovies(genreId, genreName) {
-      const searchTerm = document.getElementById('search-input').value;
-      document.getElementById('movie-info').innerHTML = '';
-
-      let apiUrl = `${filmApiUrl}/discover/movie?api_key=${filmApiKey}&language=en-US&page=1&include_adult=false`;
-
-      if (genreId) {
-        apiUrl += `&with_genres=${genreId}`;
-      }
-
-      if (searchTerm) {
-        apiUrl += `&query=${searchTerm}`;
-      }
-
-      fetch(apiUrl)
-        .then(response => response.json())
-        .then(data => {
-          const searchResults = data.results;
-          displayMovies(searchResults, `Explore Results${genreName ? ' - ' + genreName : ''}`);
-        })
-        .catch(error => console.error('Error fetching search results:', error));
-    }
-
-    function discoverTrending() {
-      document.getElementById('movie-info').innerHTML = '';
-      fetch(`${filmApiUrl}/trending/movie/week?api_key=${filmApiKey}`)
-        .then(response => response.json())
-        .then(data => {
-          if (data.results && data.results.length > 0) {
-            const trendingMovies = data.results;
-
-            // Display movies without the title for trending movies
-            displayMovies(trendingMovies, '');
-          } else {
-            alert('No trending movies found.');
-          }
-        })
-        .catch(error => console.error('Error fetching trending movies:', error));
-    }
+    fetch(apiUrl)
+      .then(response => response.json())
+      .then(data => {
+        const searchResults = data.results;
+        displayMovies(searchResults, 'Explore Results');
+      })
+      .catch(error => console.error('Error fetching discover results:', error));
+  }
+}
 
     function showUpcomingMovies() {
   document.getElementById('movie-info').innerHTML = '';
